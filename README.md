@@ -34,8 +34,8 @@ On Windows, one reliable option is:
 
 ```powershell
 winget install -e --id pingbird.Puro
-puro install stable
-puro global stable
+puro create stable stable
+puro use -g stable
 ```
 
 Then open a new terminal and run:

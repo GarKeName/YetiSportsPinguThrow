@@ -36,6 +36,12 @@ All included art was generated with the built-in Images tool (`image_gen`, image
 flutter create --platforms=android,ios,macos .
 ```
 
+Or use the included script:
+
+```powershell
+./setup.ps1
+```
+
 3. Fetch dependencies:
 
 ```bash

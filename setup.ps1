@@ -4,7 +4,10 @@ $flutter = Get-Command flutter -ErrorAction SilentlyContinue
 if (-not $flutter) {
   Write-Host 'Flutter is not installed or not in PATH.'
   Write-Host 'Install Flutter first, then rerun this script.'
-  Write-Host 'Quick Windows option: winget install -e --id Flutter.Flutter'
+  Write-Host 'Quick Windows option:'
+  Write-Host '  winget install -e --id pingbird.Puro'
+  Write-Host '  puro install stable'
+  Write-Host '  puro global stable'
   Write-Host 'Official guide: https://docs.flutter.dev/get-started/install/windows/mobile'
   exit 1
 }

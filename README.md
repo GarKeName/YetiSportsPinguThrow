@@ -30,6 +30,20 @@ All included art was generated with the built-in Images tool (`image_gen`, image
 ## Run Locally
 
 1. Install Flutter SDK (stable channel).
+On Windows, one reliable option is:
+
+```powershell
+winget install -e --id pingbird.Puro
+puro install stable
+puro global stable
+```
+
+Then open a new terminal and run:
+
+```powershell
+flutter --version
+```
+
 2. On Windows, install Android Studio (for Android SDK/emulator).
 3. In this folder, generate platform scaffolding if needed:
 

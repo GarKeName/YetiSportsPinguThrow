@@ -12,6 +12,35 @@ function Invoke-Checked {
   }
 }
 
+function Ensure-UserPathEntry {
+  param(
+    [string]$Entry
+  )
+
+  if (-not (Test-Path $Entry)) {
+    return
+  }
+
+  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+  if ([string]::IsNullOrWhiteSpace($userPath)) {
+    $userPath = ''
+  }
+
+  $entries = $userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+  $hasEntry = $false
+  foreach ($existing in $entries) {
+    if ($existing.TrimEnd('\').ToLowerInvariant() -eq $Entry.TrimEnd('\').ToLowerInvariant()) {
+      $hasEntry = $true
+      break
+    }
+  }
+
+  if (-not $hasEntry) {
+    $newPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $Entry } else { "$userPath;$Entry" }
+    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+  }
+}
+
 # Ensure git is callable for flutter/puro-managed SDKs.
 $git = Get-Command git -ErrorAction SilentlyContinue
 if (-not $git -and (Test-Path 'C:\Program Files\Git\cmd\git.exe')) {
@@ -47,6 +76,11 @@ Invoke-Checked -Executable $flutterExe -Arguments @('--version')
 $platforms = 'android'
 
 if ($env:OS -eq 'Windows_NT') {
+  $puroBin = Join-Path $HOME '.puro\bin'
+  $flutterBin = Join-Path $HOME '.puro\envs\stable\flutter\bin'
+  Ensure-UserPathEntry -Entry $puroBin
+  Ensure-UserPathEntry -Entry $flutterBin
+
   # iOS and macOS builds require a Mac host.
   Invoke-Checked -Executable $flutterExe -Arguments @('config', '--enable-windows-desktop')
   $platforms = 'android,windows'
@@ -65,6 +99,10 @@ Write-Host '  flutter run -d android'
 if ($env:OS -eq 'Windows_NT') {
   Write-Host '  flutter run -d windows'
   Write-Host 'iOS/macOS builds are only available when building on macOS.'
+  Write-Host ''
+  Write-Host 'If flutter is not recognized in this terminal, run this once:'
+  Write-Host '  $env:Path = [Environment]::GetEnvironmentVariable("Path","User") + ";" + [Environment]::GetEnvironmentVariable("Path","Machine")'
+  Write-Host 'Or just close this terminal and open a new one.'
 } elseif ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)) {
   Write-Host '  flutter run -d ios'
   Write-Host '  flutter run -d macos'

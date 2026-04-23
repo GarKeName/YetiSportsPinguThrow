@@ -44,6 +44,13 @@ Then open a new terminal and run:
 flutter --version
 ```
 
+If `flutter` is still not recognized in the same PowerShell window, refresh PATH once:
+
+```powershell
+$env:Path = [Environment]::GetEnvironmentVariable("Path","User") + ";" + [Environment]::GetEnvironmentVariable("Path","Machine")
+flutter --version
+```
+
 2. On Windows, install Android Studio (for Android SDK/emulator).
 3. In this folder, generate platform scaffolding if needed:
 

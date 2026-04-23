@@ -30,10 +30,11 @@ All included art was generated with the built-in Images tool (`image_gen`, image
 ## Run Locally
 
 1. Install Flutter SDK (stable channel).
-2. In this folder, generate platform scaffolding if needed:
+2. On Windows, install Android Studio (for Android SDK/emulator).
+3. In this folder, generate platform scaffolding if needed:
 
 ```bash
-flutter create --platforms=android,ios,macos .
+flutter create --platforms=android,windows .
 ```
 
 Or use the included script:
@@ -42,28 +43,41 @@ Or use the included script:
 ./setup.ps1
 ```
 
-3. Fetch dependencies:
+Important: run `setup.ps1` (PowerShell script), not `setup.ps`.
+If your machine blocks PowerShell scripts, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+Or use the included batch launcher:
+
+```bat
+setup.cmd
+```
+
+4. Fetch dependencies:
 
 ```bash
 flutter pub get
 ```
 
-4. Run:
+5. Run:
 
 ```bash
 flutter run -d android
 ```
 
-For iPhone builds, run from macOS with Xcode installed:
+Optional Windows desktop test:
+
+```bash
+flutter run -d windows
+```
+
+For iPhone builds, run from macOS with Xcode installed (cannot be built from Windows):
 
 ```bash
 flutter run -d ios
-```
-
-Optional desktop test on macOS:
-
-```bash
-flutter run -d macos
 ```
 
 ## Notes

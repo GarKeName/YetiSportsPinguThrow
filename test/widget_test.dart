@@ -7,8 +7,8 @@ void main() {
   testWidgets('game HUD and prompt are visible', (WidgetTester tester) async {
     await tester.pumpWidget(const ArcticSluggerApp());
 
-    expect(find.text('DIST'), findsOneWidget);
-    expect(find.text('BEST'), findsOneWidget);
+    expect(find.textContaining('DIST'), findsOneWidget);
+    expect(find.textContaining('BEST'), findsOneWidget);
     expect(
       find.text('Tap to drop the penguin. Tap again in the hit zone.'),
       findsOneWidget,

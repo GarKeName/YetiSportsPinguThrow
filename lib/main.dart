@@ -12,14 +12,10 @@ class ArcticSluggerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Arctic Slugger',
+    return const MaterialApp(
+      title: 'Pingu Throw Mobile',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0C6B93)),
-        useMaterial3: true,
-      ),
-      home: const PinguThrowGamePage(),
+      home: PinguThrowGamePage(),
     );
   }
 }
@@ -70,79 +66,107 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        setState(_game.handleTap);
-      },
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenWidth = constraints.maxWidth;
-          final screenHeight = constraints.maxHeight;
-          final worldScale = (screenHeight / ArcticSluggerGame.worldHeight)
-              .clamp(0.72, 1.45);
-          final viewWorldWidth = screenWidth / worldScale;
-          _game.viewWorldWidth = viewWorldWidth;
-
-          return Stack(
-            children: [
-              CustomPaint(
-                size: Size(screenWidth, screenHeight),
-                painter: ArcticBackgroundPainter(
-                  cameraX: _game.cameraX,
-                  worldScale: worldScale,
-                ),
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A1420),
+      body: SafeArea(
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFBFD8E8), width: 2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0xAA000000),
+                    blurRadius: 20,
+                    offset: Offset(0, 10),
+                  ),
+                ],
               ),
-              ClipRect(
-                child: Transform.scale(
-                  alignment: Alignment.topLeft,
-                  scale: worldScale,
-                  child: SizedBox(
-                    width: viewWorldWidth,
-                    height: ArcticSluggerGame.worldHeight,
-                    child: Stack(
-                      children: [
-                        _buildGroundPlane(),
-                        _buildDistancePosts(
-                          startX: _game.cameraX,
-                          width: viewWorldWidth,
-                        ),
-                        _buildHitZone(),
-                        _buildCliff(),
-                        _buildYeti(),
-                        if (_game.showPenguin) _buildPenguin(),
-                      ],
-                    ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    setState(_game.handleTap);
+                  },
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final screenWidth = constraints.maxWidth;
+                      final screenHeight = constraints.maxHeight;
+                      final worldScale =
+                          (screenHeight / ArcticSluggerGame.worldHeight)
+                              .clamp(0.55, 1.6);
+                      final viewWorldWidth = screenWidth / worldScale;
+                      _game.viewWorldWidth = viewWorldWidth;
+
+                      return Stack(
+                        children: [
+                          CustomPaint(
+                            size: Size(screenWidth, screenHeight),
+                            painter: ArcticBackgroundPainter(
+                              cameraX: _game.cameraX,
+                              worldScale: worldScale,
+                            ),
+                          ),
+                          ClipRect(
+                            child: Transform.scale(
+                              alignment: Alignment.topLeft,
+                              scale: worldScale,
+                              child: SizedBox(
+                                width: viewWorldWidth,
+                                height: ArcticSluggerGame.worldHeight,
+                                child: Stack(
+                                  children: [
+                                    _buildGroundPlane(),
+                                    _buildDistancePosts(
+                                      startX: _game.cameraX,
+                                      width: viewWorldWidth,
+                                    ),
+                                    _buildDecorationSet(),
+                                    _buildCliff(),
+                                    _buildYeti(),
+                                    _buildPenguin(),
+                                    if (_game.phase == RoundPhase.dropping)
+                                      _buildHitGuide(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          _buildOverlayUi(),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
-              _buildTopHud(),
-              _buildBottomPrompt(),
-            ],
-          );
-        },
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildGroundPlane() {
     return Positioned(
-      left: -_game.cameraX - 300,
-      right: -300,
+      left: -_game.cameraX - 200,
+      right: -200,
       top: ArcticSluggerGame.groundY,
       bottom: 0,
-      child: DecoratedBox(
+      child: const DecoratedBox(
         decoration: BoxDecoration(
-          border: const Border(
-            top: BorderSide(color: Color(0xFFDDF7FF), width: 2),
+          border: Border(
+            top: BorderSide(color: Color(0xFFE4F7FF), width: 2),
           ),
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color(0xFFBEE8FB).withValues(alpha: 0.86),
-              const Color(0xFF84C4E0).withValues(alpha: 0.94),
-              const Color(0xFF4E8FB1),
+              Color(0xFFD5EBF7),
+              Color(0xFFA9D0E8),
+              Color(0xFF89BEDD),
             ],
           ),
         ),
@@ -157,28 +181,23 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
             .ceil() *
         50;
 
-    final posts = <Widget>[];
-
+    final markers = <Widget>[];
     for (int meter = minMeter; meter <= maxMeter + 100; meter += 50) {
       if (meter <= 0) {
         continue;
       }
-
       final x = meter * ArcticSluggerGame.pixelsPerMeter - _game.cameraX;
       final isMajor = meter % 100 == 0;
-      final lineHeight = isMajor ? 82.0 : 52.0;
-
-      posts.add(
+      markers.add(
         Positioned(
           left: x,
-          top: ArcticSluggerGame.groundY - lineHeight,
+          top: ArcticSluggerGame.groundY - (isMajor ? 76 : 52),
           child: Column(
             children: [
               Container(
                 width: isMajor ? 3 : 2,
-                height: lineHeight,
-                color: const Color(0xFFE5FAFF)
-                    .withValues(alpha: isMajor ? 0.95 : 0.7),
+                height: isMajor ? 76 : 52,
+                color: const Color(0xE6E8F8FF),
               ),
               if (isMajor)
                 Container(
@@ -186,16 +205,16 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xAA0D405F),
+                    color: const Color(0xA1113044),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF84D8F2)),
+                    border: Border.all(color: const Color(0xFF9FDDF6)),
                   ),
                   child: Text(
                     '${meter}m',
                     style: const TextStyle(
-                      color: Color(0xFFE8FBFF),
-                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFEAF9FF),
                       fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -204,39 +223,100 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
         ),
       );
     }
-
-    return Stack(children: posts);
+    return Stack(children: markers);
   }
 
-  Widget _buildHitZone() {
+  Widget _buildDecorationSet() {
+    return Stack(
+      children: [
+        Positioned(
+          left: 260 - _game.cameraX,
+          top: ArcticSluggerGame.groundY - 130,
+          child: const SizedBox(
+            width: 60,
+            height: 130,
+            child: CustomPaint(painter: PineTreePainter()),
+          ),
+        ),
+        Positioned(
+          left: 470 - _game.cameraX,
+          top: ArcticSluggerGame.groundY - 115,
+          child: const SizedBox(
+            width: 50,
+            height: 115,
+            child: CustomPaint(painter: PineTreePainter()),
+          ),
+        ),
+        Positioned(
+          left: 356 - _game.cameraX,
+          top: ArcticSluggerGame.groundY - 84,
+          child: SizedBox(
+            width: 156,
+            height: 84,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const CustomPaint(
+                  size: Size(156, 84),
+                  painter: IceScoreSignPainter(),
+                ),
+                Positioned(
+                  top: 23,
+                  child: Text(
+                    'TOP: ${_game.bestDistanceMeters.round().toString().padLeft(4, '0')}',
+                    style: const TextStyle(
+                      color: Color(0xFF11476B),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 548 - _game.cameraX,
+          top: ArcticSluggerGame.groundY - 45,
+          child: const SizedBox(
+            width: 84,
+            height: 52,
+            child: CustomPaint(painter: IceRockPainter()),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHitGuide() {
     return Positioned(
       left: _game.hitTargetX - _game.cameraX - 2,
-      top: ArcticSluggerGame.groundY - 145,
+      top: ArcticSluggerGame.groundY - 150,
       child: Column(
         children: [
           Container(
             width: 4,
-            height: 122,
+            height: 118,
             decoration: BoxDecoration(
-              color: const Color(0xFFFAF5A5).withValues(alpha: 0.95),
+              color: const Color(0xCCFFF3A8),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
+          const SizedBox(height: 4),
           Container(
-            margin: const EdgeInsets.only(top: 5),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xAA112E3D),
+              color: const Color(0xA0112E3F),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFEFE077)),
+              border: Border.all(color: const Color(0xFFF7E66E)),
             ),
             child: const Text(
               'HIT',
               style: TextStyle(
-                color: Color(0xFFFFF3A8),
+                color: Color(0xFFFBEA72),
                 fontWeight: FontWeight.w800,
                 fontSize: 10,
-                letterSpacing: 0.6,
               ),
             ),
           ),
@@ -252,9 +332,7 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
       child: const SizedBox(
         width: ArcticSluggerGame.cliffWidth,
         height: ArcticSluggerGame.cliffHeight,
-        child: CustomPaint(
-          painter: CliffPainter(),
-        ),
+        child: CustomPaint(painter: CliffPainter()),
       ),
     );
   }
@@ -274,127 +352,81 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
   }
 
   Widget _buildPenguin() {
-    const diameter = ArcticSluggerGame.penguinRadius * 2.4;
-
+    const d = ArcticSluggerGame.penguinRadius * 2.6;
     return Positioned(
-      left: _game.penguinX - _game.cameraX - (diameter / 2),
-      top: _game.penguinY - (diameter / 2),
+      left: _game.penguinX - _game.cameraX - (d / 2),
+      top: _game.penguinY - (d / 2),
       child: Transform.rotate(
         angle: _game.penguinRotation,
         child: const SizedBox(
-          width: diameter,
-          height: diameter,
-          child: CustomPaint(
-            painter: PenguinPainter(),
-          ),
+          width: d,
+          height: d,
+          child: CustomPaint(painter: PenguinPainter()),
         ),
       ),
     );
   }
 
-  Widget _buildTopHud() {
-    final score = _game.currentDistanceMeters;
-    final best = _game.bestDistanceMeters;
-
+  Widget _buildOverlayUi() {
     return SafeArea(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: Container(
-          margin: const EdgeInsets.only(top: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            color: const Color(0xAA0A2D42),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF8FD8F2), width: 1.3),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _statChip('DIST', '${score.toStringAsFixed(1)} m'),
-              const SizedBox(width: 8),
-              _statChip('BEST', '${best.toStringAsFixed(1)} m'),
-              const SizedBox(width: 8),
-              _statChip('WIND', _game.windLabel),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _statChip(String title, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E4564),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF3FA0C8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF9BE8FF),
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-              letterSpacing: 0.6,
+          Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xAA1D445E),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF9ED7EF)),
+              ),
+              child: Text(
+                'DIST ${_game.currentDistanceMeters.toStringAsFixed(1)} m   BEST ${_game.bestDistanceMeters.toStringAsFixed(1)} m   WIND ${_game.windLabel}',
+                style: const TextStyle(
+                  color: Color(0xFFEAF9FF),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+          Positioned(
+            top: 12,
+            right: 12,
+            child: FilledButton(
+              onPressed: () {
+                setState(_game.forceReset);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0B668D),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              ),
+              child: const Text('Reset'),
+            ),
+          ),
+          Positioned(
+            left: 12,
+            bottom: 10,
+            child: Text(
+              _game.prompt,
+              style: const TextStyle(
+                color: Color(0xFFEFFCFF),
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                shadows: [
+                  Shadow(
+                    color: Color(0xCC000000),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBottomPrompt() {
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xB214354A),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF8FD8F2)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _game.prompt,
-                  style: const TextStyle(
-                    color: Color(0xFFE3F7FF),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              FilledButton(
-                onPressed: () {
-                  setState(_game.forceReset);
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0C6B89),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                child: const Text('Reset'),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -405,26 +437,25 @@ class ArcticSluggerGame {
     forceReset();
   }
 
-  static const double worldHeight = 520;
-  static const double groundY = 392;
-  static const double pixelsPerMeter = 12.5;
+  static const double worldHeight = 600;
+  static const double groundY = 500;
+  static const double pixelsPerMeter = 10.5;
 
-  static const double cliffWidth = 146;
-  static const double cliffHeight = 188;
-  static const double yetiWidth = 130;
-  static const double yetiHeight = 156;
-  static const double penguinRadius = 16;
-  static const double swingDuration = 0.18;
+  static const double cliffWidth = 176;
+  static const double cliffHeight = 310;
+  static const double yetiWidth = 92;
+  static const double yetiHeight = 132;
+  static const double penguinRadius = 14;
+  static const double swingDuration = 0.16;
 
   final _rng = math.Random();
 
   RoundPhase phase = RoundPhase.ready;
 
-  double cliffX = 22;
-  double cliffY = groundY - cliffHeight + 6;
-
-  double yetiX = 120;
-  double yetiY = groundY - yetiHeight;
+  double cliffX = 54;
+  double cliffY = groundY - cliffHeight + 10;
+  double yetiX = 168;
+  double yetiY = groundY - yetiHeight + 4;
 
   double penguinX = 0;
   double penguinY = 0;
@@ -433,12 +464,11 @@ class ArcticSluggerGame {
   double penguinRotation = 0;
 
   double swingTimer = 0;
-  double dropTimer = 0;
   double idleClock = 0;
   int bounceCount = 0;
 
   double cameraX = 0;
-  double viewWorldWidth = 390;
+  double viewWorldWidth = 800;
 
   double launchX = 0;
   double currentDistanceMeters = 0;
@@ -448,11 +478,11 @@ class ArcticSluggerGame {
 
   bool get showPenguin => true;
 
-  double get perchX => cliffX + 44;
-  double get perchY => cliffY - penguinRadius - 8;
+  double get perchX => cliffX + 88;
+  double get perchY => cliffY - penguinRadius - 4;
 
-  double get hitTargetX => yetiX + (yetiWidth * 0.62);
-  double get hitTargetY => yetiY + (yetiHeight * 0.44);
+  double get hitTargetX => yetiX + 55;
+  double get hitTargetY => yetiY + 48;
 
   double get swingProgress {
     if (swingTimer <= 0) {
@@ -462,10 +492,10 @@ class ArcticSluggerGame {
   }
 
   String get windLabel {
-    if (windForce.abs() < 7) {
+    if (windForce.abs() < 8) {
       return 'Calm';
     }
-    final kmh = (windForce / 8.4).round().abs();
+    final kmh = (windForce / 8).round().abs();
     if (windForce > 0) {
       return '$kmh km/h Tail';
     }
@@ -509,54 +539,51 @@ class ArcticSluggerGame {
     penguinY = perchY;
     penguinVx = 0;
     penguinVy = 0;
-    penguinRotation = -0.1;
+    penguinRotation = -0.05;
     swingTimer = 0;
-    dropTimer = 0;
     idleClock = 0;
     bounceCount = 0;
     launchX = hitTargetX;
     currentDistanceMeters = 0;
-    windForce = (_rng.nextDouble() * 2 - 1) * 56;
+    windForce = (_rng.nextDouble() * 2 - 1) * 65;
   }
 
   void _startDrop() {
     phase = RoundPhase.dropping;
-    dropTimer = 0;
     swingTimer = 0;
     bounceCount = 0;
+    currentDistanceMeters = 0;
 
-    windForce = (_rng.nextDouble() * 2 - 1) * 64;
+    windForce = (_rng.nextDouble() * 2 - 1) * 70;
 
-    penguinX = hitTargetX;
-    penguinY = 50;
+    penguinX = perchX;
+    penguinY = perchY;
     penguinVx = 0;
     penguinVy = 0;
     penguinRotation = 0;
-
-    launchX = penguinX;
-    currentDistanceMeters = 0;
-    cameraX = 0;
+    launchX = hitTargetX;
   }
 
   void _trySwing() {
     swingTimer = swingDuration;
 
-    final xScore = (1 - ((penguinX - hitTargetX).abs() / 46)).clamp(0.0, 1.0);
-    final yScore = (1 - ((penguinY - hitTargetY).abs() / 105)).clamp(0.0, 1.0);
-    final quality = math.pow((xScore * 0.35 + yScore * 0.65), 1.05).toDouble();
+    final xScore = (1 - ((penguinX - hitTargetX).abs() / 52)).clamp(0.0, 1.0);
+    final yScore = (1 - ((penguinY - hitTargetY).abs() / 122)).clamp(0.0, 1.0);
+    final quality = math.pow((xScore * 0.45 + yScore * 0.55), 1.1).toDouble();
 
-    final angleDeg = _lerp(18, 47, quality);
-    final speed = _lerp(280, 1360, quality);
+    final angleDeg = _lerp(18, 48, quality);
+    final speed = _lerp(240, 1540, quality);
     final angleRad = angleDeg * math.pi / 180;
 
     phase = RoundPhase.flying;
+    launchX = penguinX;
 
     penguinVx = speed * math.cos(angleRad);
     penguinVy = -speed * math.sin(angleRad);
 
-    if (quality < 0.15) {
-      penguinVx = _lerp(110, 320, quality * 4.5);
-      penguinVy = -_lerp(80, 210, quality * 4.5);
+    if (quality < 0.14) {
+      penguinVx = _lerp(120, 320, quality * 4.8);
+      penguinVy = -_lerp(90, 220, quality * 4.8);
     }
   }
 
@@ -597,15 +624,13 @@ class ArcticSluggerGame {
 
   void _updateReady(double dt) {
     penguinX = perchX;
-    penguinY = perchY + (math.sin(idleClock * 2.2) * 2.3);
-    penguinRotation = -0.08;
+    penguinY = perchY + (math.sin(idleClock * 2.2) * 1.8);
+    penguinRotation = -0.05;
     _updateCamera(dt, fixed: true);
   }
 
   void _updateDrop(double dt) {
-    dropTimer += dt;
-
-    penguinVy += 1830 * dt;
+    penguinVy += 2050 * dt;
     penguinY += penguinVy * dt;
 
     if (penguinY >= groundY - penguinRadius) {
@@ -620,24 +645,22 @@ class ArcticSluggerGame {
   }
 
   void _updateFlight(double dt) {
-    penguinVy += 1810 * dt;
+    penguinVy += 1930 * dt;
     penguinVx += windForce * dt;
 
-    final drag = math.pow(0.991, dt * 60).toDouble();
+    final drag = math.pow(0.99, dt * 60).toDouble();
     penguinVx *= drag;
 
     penguinX += penguinVx * dt;
     penguinY += penguinVy * dt;
-    penguinRotation += (penguinVx.sign * 5.2) * dt;
+    penguinRotation += penguinVx.sign * 5.0 * dt;
 
     if (penguinY >= groundY - penguinRadius) {
       penguinY = groundY - penguinRadius;
-
-      if (bounceCount < 2 && penguinVy > 260) {
+      if (bounceCount < 2 && penguinVy > 280) {
         bounceCount += 1;
-        final damp = bounceCount == 1 ? 0.34 : 0.18;
-        penguinVy = -penguinVy * damp;
-        penguinVx *= 0.83;
+        penguinVy = -penguinVy * (bounceCount == 1 ? 0.32 : 0.18);
+        penguinVx *= 0.84;
       } else {
         penguinVy = 0;
         phase = RoundPhase.sliding;
@@ -648,10 +671,10 @@ class ArcticSluggerGame {
   }
 
   void _updateSlide(double dt) {
-    final friction = _lerp(175, 255, (windForce.abs() / 85).clamp(0.0, 1.0));
+    final friction = _lerp(170, 265, (windForce.abs() / 85).clamp(0.0, 1.0));
 
     penguinX += penguinVx * dt;
-    penguinRotation += penguinVx.sign * 2.5 * dt;
+    penguinRotation += penguinVx.sign * 2.4 * dt;
 
     if (penguinVx > 0) {
       penguinVx = math.max(0, penguinVx - friction * dt);
@@ -672,7 +695,7 @@ class ArcticSluggerGame {
     final target = fixed
         ? 0.0
         : math.max(0, penguinX - (viewWorldWidth * 0.42));
-    final follow = fixed ? 0.23 : 0.14;
+    final follow = fixed ? 0.22 : 0.14;
     cameraX += (target - cameraX) * (1 - math.pow(1 - follow, dt * 60));
     cameraX = math.max(0, cameraX);
   }
@@ -696,133 +719,66 @@ class ArcticBackgroundPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0xFF0A72C8),
-          Color(0xFF3FA6E3),
-          Color(0xFF9BDDF5),
+          Color(0xFF6E7B8A),
+          Color(0xFF2B84C2),
+          Color(0xFF8EC8EE),
         ],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, sky);
 
     canvas.drawCircle(
-      Offset(size.width * 0.79, size.height * 0.16),
+      Offset(size.width * 0.74, size.height * 0.18),
       size.width * 0.06,
-      Paint()..color = const Color(0x66F4FDFF),
+      Paint()..color = const Color(0x66FFFFFF),
     );
 
-    _drawMountainLayer(
+    _drawMountains(
       canvas,
       size,
-      color: const Color(0xFF74B6E7),
-      snowColor: const Color(0xFFDFF5FF),
-      baseY: size.height * 0.58,
+      baseY: size.height * 0.66,
       parallax: 0.17,
-      peaks: const [
-        _Peak(0.00, 0.30),
-        _Peak(0.17, 0.24),
-        _Peak(0.34, 0.32),
-        _Peak(0.54, 0.22),
-        _Peak(0.76, 0.29),
-        _Peak(0.97, 0.21),
-      ],
+      color: const Color(0xFF9EBED6),
+      peaks: const [0.00, 0.16, 0.33, 0.49, 0.66, 0.82, 1.00],
+      heights: const [0.16, 0.09, 0.17, 0.10, 0.15, 0.08, 0.14],
     );
 
-    _drawMountainLayer(
+    _drawMountains(
       canvas,
       size,
-      color: const Color(0xFF4E95CF),
-      snowColor: const Color(0xFFF2FBFF),
-      baseY: size.height * 0.68,
-      parallax: 0.28,
-      peaks: const [
-        _Peak(0.02, 0.38),
-        _Peak(0.23, 0.30),
-        _Peak(0.45, 0.35),
-        _Peak(0.66, 0.28),
-        _Peak(0.86, 0.40),
-      ],
+      baseY: size.height * 0.70,
+      parallax: 0.29,
+      color: const Color(0xFFB9CFDF),
+      peaks: const [0.02, 0.22, 0.40, 0.61, 0.80, 0.98],
+      heights: const [0.22, 0.15, 0.21, 0.14, 0.23, 0.16],
     );
-
-    final horizonIce = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xCCBEE8FB),
-          Color(0xFF9ED3EA),
-          Color(0xFF7BB6D3),
-        ],
-      ).createShader(
-        Rect.fromLTWH(0, size.height * 0.72, size.width, size.height * 0.28),
-      );
 
     canvas.drawRect(
-      Rect.fromLTWH(0, size.height * 0.72, size.width, size.height * 0.28),
-      horizonIce,
+      Rect.fromLTWH(0, size.height * 0.64, size.width, size.height * 0.34),
+      Paint()..color = const Color(0x88E8F6FF),
     );
-
-    final crackPaint = Paint()
-      ..color = const Color(0xFF5EA0C3).withValues(alpha: 0.66)
-      ..strokeWidth = 1.8
-      ..style = PaintingStyle.stroke;
-
-    for (var i = 0; i < 12; i++) {
-      final baseX =
-          ((i * 180) - ((cameraX * worldScale * 0.76) % 180)) - 100;
-      final path = Path()
-        ..moveTo(baseX, size.height * 0.84)
-        ..lineTo(baseX + 74, size.height * 0.80)
-        ..lineTo(baseX + 154, size.height * 0.86)
-        ..lineTo(baseX + 222, size.height * 0.82);
-      canvas.drawPath(path, crackPaint);
-    }
   }
 
-  void _drawMountainLayer(
+  void _drawMountains(
     Canvas canvas,
     Size size, {
-    required Color color,
-    required Color snowColor,
     required double baseY,
     required double parallax,
-    required List<_Peak> peaks,
+    required Color color,
+    required List<double> peaks,
+    required List<double> heights,
   }) {
     final shift = -(cameraX * worldScale * parallax) % size.width;
-
     for (double offset = shift - size.width; offset <= size.width; offset += size.width) {
-      final body = Path()..moveTo(offset, size.height);
-      final ridgePoints = <Offset>[];
-
-      for (final peak in peaks) {
-        final p = Offset(
-          offset + (size.width * peak.xFactor),
-          baseY - (size.height * peak.heightFactor),
-        );
-        ridgePoints.add(p);
-        body.lineTo(p.dx, p.dy);
+      final path = Path()..moveTo(offset, size.height);
+      for (int i = 0; i < peaks.length; i++) {
+        final x = offset + (size.width * peaks[i]);
+        final y = baseY - (size.height * heights[i]);
+        path.lineTo(x, y);
       }
-
-      body
+      path
         ..lineTo(offset + size.width, size.height)
         ..close();
-
-      canvas.drawPath(body, Paint()..color = color);
-
-      final snow = Path();
-      for (var i = 0; i < ridgePoints.length; i++) {
-        final point = ridgePoints[i];
-        final top = Offset(point.dx, point.dy + (size.height * 0.02));
-        if (i == 0) {
-          snow.moveTo(top.dx, top.dy);
-        } else {
-          snow.lineTo(top.dx, top.dy);
-        }
-      }
-      snow
-        ..lineTo(offset + size.width, baseY + (size.height * 0.01))
-        ..lineTo(offset, baseY + (size.height * 0.01))
-        ..close();
-
-      canvas.drawPath(snow, Paint()..color = snowColor.withValues(alpha: 0.65));
+      canvas.drawPath(path, Paint()..color = color);
     }
   }
 
@@ -837,68 +793,64 @@ class CliffPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final iceBody = Path()
+    final cliff = Path()
       ..moveTo(size.width * 0.08, size.height)
-      ..lineTo(size.width * 0.15, size.height * 0.12)
-      ..lineTo(size.width * 0.62, size.height * 0.06)
-      ..lineTo(size.width * 0.96, size.height * 0.02)
-      ..lineTo(size.width * 0.94, size.height * 0.22)
-      ..lineTo(size.width * 0.86, size.height)
+      ..lineTo(size.width * 0.16, size.height * 0.20)
+      ..lineTo(size.width * 0.26, size.height * 0.10)
+      ..lineTo(size.width * 0.33, size.height * 0.05)
+      ..lineTo(size.width * 0.40, size.height * 0.00)
+      ..lineTo(size.width * 0.47, size.height * 0.03)
+      ..lineTo(size.width * 0.56, size.height * 0.10)
+      ..lineTo(size.width * 0.64, size.height * 0.22)
+      ..lineTo(size.width * 0.82, size.height * 0.82)
+      ..lineTo(size.width * 0.92, size.height)
       ..close();
-
-    final icePaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF8CE6FF),
-          Color(0xFF4DB7E2),
-          Color(0xFF2C86B6),
-        ],
-      ).createShader(Offset.zero & size);
-
-    canvas.drawPath(iceBody, icePaint);
-
-    final snowCap = Path()
-      ..moveTo(size.width * 0.1, size.height * 0.15)
-      ..lineTo(size.width * 0.23, size.height * 0.06)
-      ..lineTo(size.width * 0.54, size.height * 0.04)
-      ..lineTo(size.width * 0.88, size.height * 0.03)
-      ..lineTo(size.width * 0.94, size.height * 0.10)
-      ..lineTo(size.width * 0.82, size.height * 0.14)
-      ..lineTo(size.width * 0.56, size.height * 0.11)
-      ..lineTo(size.width * 0.24, size.height * 0.12)
-      ..close();
-
-    canvas.drawPath(snowCap, Paint()..color = const Color(0xFFF4FCFF));
-
-    final crack = Paint()
-      ..color = const Color(0xFF2D7DAA).withValues(alpha: 0.8)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(
-      Offset(size.width * 0.28, size.height * 0.18),
-      Offset(size.width * 0.22, size.height * 0.88),
-      crack,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.52, size.height * 0.14),
-      Offset(size.width * 0.50, size.height * 0.92),
-      crack,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.74, size.height * 0.12),
-      Offset(size.width * 0.80, size.height * 0.92),
-      crack,
-    );
 
     canvas.drawPath(
-      iceBody,
+      cliff,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFBCC6D2),
+            Color(0xFF8E9EAF),
+            Color(0xFF738396),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+
+    final shade = Paint()
+      ..color = const Color(0x663A4A5C)
+      ..style = PaintingStyle.fill;
+    final stripes = [
+      [0.28, 0.12, 0.22, 0.92],
+      [0.46, 0.18, 0.40, 0.97],
+      [0.61, 0.24, 0.56, 0.96],
+    ];
+    for (final s in stripes) {
+      canvas.drawLine(
+        Offset(size.width * s[0], size.height * s[1]),
+        Offset(size.width * s[2], size.height * s[3]),
+        shade..strokeWidth = 8,
+      );
+    }
+
+    final cap = Path()
+      ..moveTo(size.width * 0.26, size.height * 0.11)
+      ..lineTo(size.width * 0.35, size.height * 0.03)
+      ..lineTo(size.width * 0.46, size.height * 0.02)
+      ..lineTo(size.width * 0.57, size.height * 0.11)
+      ..lineTo(size.width * 0.42, size.height * 0.14)
+      ..close();
+    canvas.drawPath(cap, Paint()..color = const Color(0xFFEFF8FF));
+
+    canvas.drawPath(
+      cliff,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = const Color(0xFF156087),
+        ..color = const Color(0xFF4B5E72),
     );
   }
 
@@ -913,201 +865,123 @@ class YetiPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final fur = Paint()..color = const Color(0xFFF4FCFF);
-    final furShade = Paint()..color = const Color(0xFFD8EEFC);
-    final skin = Paint()..color = const Color(0xFF81C6ED);
-    final skinDark = Paint()..color = const Color(0xFF4EA2D4);
+    final body = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFFEFF6FB),
+          Color(0xFFD7E6F3),
+          Color(0xFFC4D6E7),
+        ],
+      ).createShader(Offset.zero & size);
     final outline = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.2
-      ..color = const Color(0xFF1D5E8D);
+      ..color = const Color(0xFF2A628F);
 
     final torso = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.2,
-        size.height * 0.38,
-        size.width * 0.58,
-        size.height * 0.50,
-      ),
-      const Radius.circular(26),
+      Rect.fromLTWH(size.width * 0.22, size.height * 0.33, size.width * 0.52,
+          size.height * 0.52),
+      const Radius.circular(24),
     );
-    canvas.drawRRect(torso, fur);
-
-    final belly = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.31,
-        size.height * 0.45,
-        size.width * 0.35,
-        size.height * 0.35,
-      ),
-      const Radius.circular(18),
-    );
-    canvas.drawRRect(belly, furShade);
+    canvas.drawRRect(torso, body);
+    canvas.drawRRect(torso, outline);
 
     final head = Rect.fromLTWH(
-      size.width * 0.29,
-      size.height * 0.15,
-      size.width * 0.38,
+      size.width * 0.28,
+      size.height * 0.12,
+      size.width * 0.36,
       size.height * 0.30,
     );
-    canvas.drawOval(head, fur);
+    canvas.drawOval(head, body);
+    canvas.drawOval(head, outline);
 
     final face = Rect.fromLTWH(
-      size.width * 0.35,
-      size.height * 0.21,
-      size.width * 0.26,
-      size.height * 0.19,
+      size.width * 0.36,
+      size.height * 0.20,
+      size.width * 0.20,
+      size.height * 0.16,
     );
-    canvas.drawOval(face, skin);
+    canvas.drawOval(face, Paint()..color = const Color(0xFFA8D0EC));
+
+    final eye = Paint()..color = const Color(0xFF102335);
+    canvas.drawCircle(Offset(size.width * 0.43, size.height * 0.26), 2.5, eye);
+    canvas.drawCircle(Offset(size.width * 0.53, size.height * 0.26), 2.5, eye);
+
+    final smile = Path()
+      ..moveTo(size.width * 0.42, size.height * 0.31)
+      ..quadraticBezierTo(size.width * 0.49, size.height * 0.33,
+          size.width * 0.56, size.height * 0.31);
+    canvas.drawPath(
+      smile,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..color = const Color(0xFF245C87),
+    );
 
     final leftLeg = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.24,
-        size.height * 0.72,
-        size.width * 0.16,
-        size.height * 0.22,
-      ),
-      const Radius.circular(22),
+      Rect.fromLTWH(size.width * 0.24, size.height * 0.74, size.width * 0.15,
+          size.height * 0.22),
+      const Radius.circular(20),
     );
     final rightLeg = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.55,
-        size.height * 0.72,
-        size.width * 0.16,
-        size.height * 0.22,
-      ),
-      const Radius.circular(22),
-    );
-    canvas.drawRRect(leftLeg, fur);
-    canvas.drawRRect(rightLeg, fur);
-
-    final leftFoot = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.20,
-        size.height * 0.88,
-        size.width * 0.22,
-        size.height * 0.1,
-      ),
-      const Radius.circular(16),
-    );
-    final rightFoot = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.52,
-        size.height * 0.88,
-        size.width * 0.22,
-        size.height * 0.1,
-      ),
-      const Radius.circular(16),
-    );
-    canvas.drawRRect(leftFoot, skinDark);
-    canvas.drawRRect(rightFoot, skinDark);
-
-    final t = Curves.easeOutCubic.transform(swingProgress.clamp(0.0, 1.0));
-
-    final leftArm = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.13,
-        _lerp(size.height * 0.51, size.height * 0.43, t),
-        size.width * 0.23,
-        size.height * 0.15,
-      ),
+      Rect.fromLTWH(size.width * 0.56, size.height * 0.74, size.width * 0.15,
+          size.height * 0.22),
       const Radius.circular(20),
     );
-    final rightArm = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.55,
-        _lerp(size.height * 0.48, size.height * 0.54, t),
-        size.width * 0.25,
-        size.height * 0.15,
-      ),
+    canvas.drawRRect(leftLeg, body);
+    canvas.drawRRect(rightLeg, body);
+    canvas.drawRRect(leftLeg, outline);
+    canvas.drawRRect(rightLeg, outline);
+
+    final t = Curves.easeOut.transform(swingProgress);
+    final armY = _lerp(size.height * 0.48, size.height * 0.44, t);
+    final arm = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.18, armY, size.width * 0.46, size.height * 0.15),
       const Radius.circular(20),
     );
-    canvas.drawRRect(leftArm, fur);
-    canvas.drawRRect(rightArm, fur);
+    canvas.drawRRect(arm, body);
+    canvas.drawRRect(arm, outline);
 
-    final eyeWhite = Paint()..color = Colors.white;
-    canvas.drawOval(
-      Rect.fromLTWH(
-        size.width * 0.40,
-        size.height * 0.24,
-        size.width * 0.06,
-        size.height * 0.05,
-      ),
-      eyeWhite,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(
-        size.width * 0.52,
-        size.height * 0.24,
-        size.width * 0.06,
-        size.height * 0.05,
-      ),
-      eyeWhite,
-    );
-
-    canvas.drawCircle(
-      Offset(size.width * 0.435, size.height * 0.265),
-      size.width * 0.012,
-      Paint()..color = const Color(0xFF0B2B3E),
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.555, size.height * 0.265),
-      size.width * 0.012,
-      Paint()..color = const Color(0xFF0B2B3E),
-    );
-
-    final mouthPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..color = const Color(0xFF1D5E8D);
-    final mouth = Path()
-      ..moveTo(size.width * 0.44, size.height * 0.33)
-      ..quadraticBezierTo(
-        size.width * 0.49,
-        size.height * 0.35,
-        size.width * 0.56,
-        size.height * 0.33,
-      );
-    canvas.drawPath(mouth, mouthPaint);
-
-    final pivot = Offset(size.width * 0.58, size.height * 0.56);
-    final batAngle = _lerp(-1.02, 0.28, t);
-
+    final pivot = Offset(size.width * 0.58, size.height * 0.57);
+    final angle = _lerp(-1.0, 0.2, t);
     canvas.save();
     canvas.translate(pivot.dx, pivot.dy);
-    canvas.rotate(batAngle);
-
+    canvas.rotate(angle);
     final batRect = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(-7, -96, 16, 122),
+      const Rect.fromLTWH(-6, -98, 16, 124),
       const Radius.circular(10),
     );
-
-    canvas.drawRRect(
-      batRect,
-      Paint()..color = const Color(0xFF996439),
-    );
+    canvas.drawRRect(batRect, Paint()..color = const Color(0xFF9B6338));
     canvas.drawRRect(
       batRect,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = const Color(0xFF6F441E),
+        ..strokeWidth = 1.6
+        ..color = const Color(0xFF6E3F1B),
     );
-
-    canvas.drawCircle(
-      const Offset(1, 29),
-      7,
-      Paint()..color = const Color(0xFF6F441E),
-    );
-
     canvas.restore();
 
-    canvas.drawRRect(torso, outline);
-    canvas.drawOval(head, outline);
-    canvas.drawRRect(leftLeg, outline);
-    canvas.drawRRect(rightLeg, outline);
-    canvas.drawRRect(leftArm, outline);
-    canvas.drawRRect(rightArm, outline);
+    canvas.drawOval(
+      Rect.fromLTWH(
+        size.width * 0.23,
+        size.height * 0.94,
+        size.width * 0.2,
+        size.height * 0.08,
+      ),
+      Paint()..color = const Color(0xFF244768),
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(
+        size.width * 0.53,
+        size.height * 0.94,
+        size.width * 0.2,
+        size.height * 0.08,
+      ),
+      Paint()..color = const Color(0xFF244768),
+    );
   }
 
   double _lerp(double a, double b, double t) => a + ((b - a) * t);
@@ -1123,50 +997,33 @@ class PenguinPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final body = Paint()..color = const Color(0xFF1C2638);
-    final belly = Paint()..color = const Color(0xFFF9FDFF);
-    final wing = Paint()..color = const Color(0xFF131C2B);
-    final orange = Paint()..color = const Color(0xFFF59A2F);
+    final body = Paint()..color = const Color(0xFF1A2434);
+    final belly = Paint()..color = const Color(0xFFF7FCFF);
+    final beak = Paint()..color = const Color(0xFFF3A63A);
 
-    final bodyRect = Rect.fromLTWH(
+    final main = Rect.fromLTWH(
       size.width * 0.18,
-      size.height * 0.15,
+      size.height * 0.16,
       size.width * 0.62,
-      size.height * 0.72,
+      size.height * 0.70,
     );
-    canvas.drawOval(bodyRect, body);
-
+    canvas.drawOval(main, body);
     canvas.drawOval(
       Rect.fromLTWH(
-        size.width * 0.32,
-        size.height * 0.32,
-        size.width * 0.38,
-        size.height * 0.46,
+        size.width * 0.34,
+        size.height * 0.34,
+        size.width * 0.34,
+        size.height * 0.42,
       ),
       belly,
     );
 
-    final leftWing = Path()
-      ..moveTo(size.width * 0.25, size.height * 0.52)
-      ..quadraticBezierTo(
-        size.width * 0.02,
-        size.height * 0.54,
-        size.width * 0.19,
-        size.height * 0.72,
-      )
+    final beakPath = Path()
+      ..moveTo(size.width * 0.69, size.height * 0.42)
+      ..lineTo(size.width * 0.92, size.height * 0.49)
+      ..lineTo(size.width * 0.70, size.height * 0.54)
       ..close();
-    canvas.drawPath(leftWing, wing);
-
-    final rightWing = Path()
-      ..moveTo(size.width * 0.74, size.height * 0.50)
-      ..quadraticBezierTo(
-        size.width * 0.97,
-        size.height * 0.56,
-        size.width * 0.76,
-        size.height * 0.73,
-      )
-      ..close();
-    canvas.drawPath(rightWing, wing);
+    canvas.drawPath(beakPath, beak);
 
     canvas.drawCircle(
       Offset(size.width * 0.60, size.height * 0.34),
@@ -1175,38 +1032,31 @@ class PenguinPainter extends CustomPainter {
     );
     canvas.drawCircle(
       Offset(size.width * 0.61, size.height * 0.35),
-      size.width * 0.022,
-      Paint()..color = const Color(0xFF0A1B2A),
+      size.width * 0.02,
+      Paint()..color = const Color(0xFF0B1522),
     );
-
-    final beak = Path()
-      ..moveTo(size.width * 0.70, size.height * 0.42)
-      ..lineTo(size.width * 0.93, size.height * 0.48)
-      ..lineTo(size.width * 0.71, size.height * 0.53)
-      ..close();
-    canvas.drawPath(beak, orange);
 
     canvas.drawOval(
       Rect.fromLTWH(
-        size.width * 0.33,
+        size.width * 0.30,
         size.height * 0.80,
         size.width * 0.16,
         size.height * 0.09,
       ),
-      orange,
+      beak,
     );
     canvas.drawOval(
       Rect.fromLTWH(
-        size.width * 0.50,
+        size.width * 0.49,
         size.height * 0.80,
         size.width * 0.16,
         size.height * 0.09,
       ),
-      orange,
+      beak,
     );
 
     canvas.drawOval(
-      bodyRect,
+      main,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.4
@@ -1218,9 +1068,154 @@ class PenguinPainter extends CustomPainter {
   bool shouldRepaint(covariant PenguinPainter oldDelegate) => false;
 }
 
-class _Peak {
-  const _Peak(this.xFactor, this.heightFactor);
+class PineTreePainter extends CustomPainter {
+  const PineTreePainter();
 
-  final double xFactor;
-  final double heightFactor;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final trunk = Rect.fromLTWH(
+      size.width * 0.44,
+      size.height * 0.78,
+      size.width * 0.12,
+      size.height * 0.20,
+    );
+    canvas.drawRect(trunk, Paint()..color = const Color(0xFF5B4432));
+
+    final green = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFF2E4D47),
+          Color(0xFF1A2D2A),
+        ],
+      ).createShader(Offset.zero & size);
+
+    void layer(double y, double w, double h) {
+      final path = Path()
+        ..moveTo(size.width * 0.5, y)
+        ..lineTo(size.width * 0.5 - w / 2, y + h)
+        ..lineTo(size.width * 0.5 + w / 2, y + h)
+        ..close();
+      canvas.drawPath(path, green);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.1
+          ..color = const Color(0xFF1A2D2A),
+      );
+    }
+
+    layer(size.height * 0.14, size.width * 0.60, size.height * 0.34);
+    layer(size.height * 0.33, size.width * 0.76, size.height * 0.36);
+    layer(size.height * 0.53, size.width * 0.88, size.height * 0.34);
+
+    final snow = Paint()..color = const Color(0xFFEFF7FD);
+    canvas.drawOval(
+      Rect.fromLTWH(
+        size.width * 0.33,
+        size.height * 0.27,
+        size.width * 0.34,
+        size.height * 0.08,
+      ),
+      snow,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(
+        size.width * 0.26,
+        size.height * 0.48,
+        size.width * 0.46,
+        size.height * 0.08,
+      ),
+      snow,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant PineTreePainter oldDelegate) => false;
+}
+
+class IceScoreSignPainter extends CustomPainter {
+  const IceScoreSignPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final board = RRect.fromRectAndRadius(
+      Rect.fromLTWH(10, 10, size.width - 20, size.height - 20),
+      const Radius.circular(10),
+    );
+    canvas.drawRRect(
+      board,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFE7F9FF),
+            Color(0xFFC5E9F9),
+            Color(0xFFA9D9F0),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.drawRRect(
+      board,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = const Color(0xFF7EB6D4),
+    );
+
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.48, size.height - 16, 6, 16),
+      Paint()..color = const Color(0xFFB8DCEC),
+    );
+
+    canvas.drawOval(
+      Rect.fromLTWH(18, size.height - 14, size.width - 36, 10),
+      Paint()..color = const Color(0x55273F54),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant IceScoreSignPainter oldDelegate) => false;
+}
+
+class IceRockPainter extends CustomPainter {
+  const IceRockPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rock = Path()
+      ..moveTo(size.width * 0.02, size.height * 0.74)
+      ..lineTo(size.width * 0.18, size.height * 0.22)
+      ..lineTo(size.width * 0.62, size.height * 0.08)
+      ..lineTo(size.width * 0.92, size.height * 0.36)
+      ..lineTo(size.width * 0.98, size.height * 0.78)
+      ..close();
+
+    canvas.drawPath(
+      rock,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFDCE6EE),
+            Color(0xFFAAB8C8),
+            Color(0xFF7A889A),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.drawPath(
+      rock,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..color = const Color(0xFF4F5E72),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant IceRockPainter oldDelegate) => false;
 }

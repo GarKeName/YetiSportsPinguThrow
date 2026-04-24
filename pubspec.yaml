@@ -1,7 +1,7 @@
 name: pingu_throw_mobile
 description: Arctic one-tap launch game inspired by classic browser arcade timing gameplay.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.2+3
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

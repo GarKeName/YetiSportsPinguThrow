@@ -1,5 +1,11 @@
 $ErrorActionPreference = 'Stop'
 
+function Assert-LastExitCode([string]$step) {
+  if ($LASTEXITCODE -ne 0) {
+    throw "$step failed with exit code $LASTEXITCODE."
+  }
+}
+
 function Read-Secret([string]$Prompt) {
   $secure = Read-Host -Prompt $Prompt -AsSecureString
   $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
@@ -11,6 +17,25 @@ function Read-Secret([string]$Prompt) {
 }
 
 Set-Location $PSScriptRoot
+
+$pubspecPath = Join-Path $PSScriptRoot "pubspec.yaml"
+if (-not (Test-Path $pubspecPath)) {
+  throw "pubspec.yaml not found at '$pubspecPath'."
+}
+
+$versionLine = Get-Content $pubspecPath | Where-Object { $_ -match '^\s*version:\s*' } | Select-Object -First 1
+if (-not $versionLine) {
+  throw "Could not find a 'version:' entry in pubspec.yaml."
+}
+
+$versionToken = ($versionLine -replace '^\s*version:\s*', '').Trim()
+$versionParts = $versionToken -split '\+'
+$buildName = $versionParts[0].Trim()
+$buildNumber = if ($versionParts.Count -gt 1 -and -not [string]::IsNullOrWhiteSpace($versionParts[1])) {
+  $versionParts[1].Trim()
+} else {
+  "1"
+}
 
 $flutterBat = Join-Path $HOME ".puro\envs\stable\flutter\bin\flutter.bat"
 if (-not (Test-Path $flutterBat)) {
@@ -28,6 +53,7 @@ if (-not (Test-Path $sdkManager)) {
 }
 
 & $flutterBat doctor --android-licenses
+Assert-LastExitCode "flutter doctor --android-licenses"
 
 $keystorePath = Join-Path $PSScriptRoot "android\upload-keystore.jks"
 if (-not (Test-Path $keystorePath)) {
@@ -53,13 +79,24 @@ keyAlias=upload
 storeFile=upload-keystore.jks
 "@ | Set-Content -Path $keyPropertiesPath -Encoding ascii
 
-& $flutterBat build appbundle --release
-
 $bundlePath = Join-Path $PSScriptRoot "build\app\outputs\bundle\release\app-release.aab"
 if (Test-Path $bundlePath) {
+  Remove-Item $bundlePath -Force
+}
+
+Write-Host "Building release bundle with versionName=$buildName and versionCode=$buildNumber"
+& $flutterBat build appbundle --release --build-name $buildName --build-number $buildNumber
+Assert-LastExitCode "flutter build appbundle"
+
+if (Test-Path $bundlePath) {
+  $versionedBundlePath = Join-Path $PSScriptRoot ("build\app\outputs\bundle\release\app-release-vc{0}.aab" -f $buildNumber)
+  Copy-Item $bundlePath $versionedBundlePath -Force
+
   Write-Host ""
   Write-Host "SUCCESS: Play Store bundle generated:"
   Write-Host $bundlePath
+  Write-Host "Versioned copy:"
+  Write-Host $versionedBundlePath
 } else {
   throw "Build completed but app-release.aab was not found at expected path."
 }

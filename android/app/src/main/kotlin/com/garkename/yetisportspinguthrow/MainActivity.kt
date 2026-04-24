@@ -1,4 +1,4 @@
-package com.example.pingu_throw_mobile
+package com.garkename.yetisportspinguthrow
 
 import io.flutter.embedding.android.FlutterActivity
 

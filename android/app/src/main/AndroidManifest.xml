@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="pingu_throw_mobile"
+        android:label="Yeti Sports Pingu Throw"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

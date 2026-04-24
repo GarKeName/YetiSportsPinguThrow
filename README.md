@@ -147,19 +147,28 @@ flutter run -d ios
 
 ## Deploy To Google Play (Android)
 
-1. Set a unique app id before first release.
-In `android/app/build.gradle.kts`, change:
-- `namespace = "com.example.pingu_throw_mobile"`
-- `applicationId = "com.example.pingu_throw_mobile"`
-to your own reverse-domain id, for example `com.yourcompany.yetisportspingu`.
+1. App id is already set for this project:
+- `com.garkename.yetisportspinguthrow`
 
-2. Create an upload keystore (one time):
+2. Install missing Android command-line tools (required for release builds):
+- Open Android Studio.
+- Go to `More Actions > SDK Manager` (or `File > Settings > Android SDK`).
+- Open `SDK Tools` tab.
+- Enable `Android SDK Command-line Tools (latest)`.
+- Click `Apply`.
+- Then run:
 
 ```powershell
-keytool -genkey -v -keystore android/upload-keystore.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+flutter doctor --android-licenses
 ```
 
-3. Create `android/key.properties`:
+3. Create an upload keystore (one time):
+
+```powershell
+& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -genkeypair -v -keystore android/upload-keystore.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+```
+
+4. Create `android/key.properties`:
 
 ```properties
 storePassword=YOUR_STORE_PASSWORD
@@ -170,7 +179,7 @@ storeFile=upload-keystore.jks
 
 The project is already configured to use this file for release signing.
 
-4. Build the Play Store bundle (`.aab`):
+5. Build the Play Store bundle (`.aab`):
 
 ```powershell
 flutter build appbundle --release
@@ -179,13 +188,27 @@ flutter build appbundle --release
 Output file:
 - `build/app/outputs/bundle/release/app-release.aab`
 
-5. Upload in Play Console:
+6. Upload in Play Console:
 - Open Google Play Console.
 - Create app (once).
 - Go to `Testing > Internal testing` (recommended first).
 - Create release and upload `app-release.aab`.
 - Complete Store Listing + Content Rating + Data safety.
 - Roll out to internal testers, then promote to production.
+
+### One-command helper (Windows)
+
+If you prefer guided setup, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\release_android.ps1
+```
+
+This script:
+- opens Android license acceptance,
+- creates `android/upload-keystore.jks` if missing,
+- writes `android/key.properties`,
+- builds `app-release.aab`.
 
 ## Notes
 - This is an original implementation inspired by the classic timing-and-distance mechanic.

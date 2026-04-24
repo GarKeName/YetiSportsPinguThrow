@@ -17,6 +17,7 @@ A one-tap arcade launcher game inspired by classic Yeti-style penguin-throw game
 ## Project Layout
 - `lib/main.dart`: Full game loop, physics, rendering, UI.
 - `assets/images/`: AI-generated game art assets.
+- `assets/images/v2/`: Current "classic look" stage, flight, yeti, and penguin assets used by the app.
 
 ## Art Generation
 All included art was generated with the built-in Images tool (`image_gen`, images 2.0 workflow) and copied into `assets/images`:
@@ -26,6 +27,13 @@ All included art was generated with the built-in Images tool (`image_gen`, image
 - `cliff.png`
 - `ui_panel.png`
 - `arctic_bg.png`
+
+Current in-game art is loaded from `assets/images/v2/`:
+- `stage_bg_classic.png`
+- `flight_bg_classic.png`
+- `yeti_idle.png`
+- `yeti_swing_lr.png`
+- `penguin.png`
 
 ## Run Locally
 
@@ -87,6 +95,42 @@ flutter pub get
 
 ```bash
 flutter run -d android
+```
+
+## Run On Android Emulator (Windows)
+
+1. Install Android Studio:
+
+```powershell
+winget install -e --id Google.AndroidStudio
+```
+
+2. Open Android Studio once and complete setup:
+- Install Android SDK, Android SDK Platform-Tools, and Android Emulator.
+- Create an AVD in `Tools > Device Manager`.
+
+3. Point Flutter to SDK (if needed) and verify:
+
+```powershell
+flutter config --android-sdk "$env:LOCALAPPDATA\Android\Sdk"
+flutter doctor
+flutter emulators
+```
+
+4. Start emulator and run game:
+
+```powershell
+flutter emulators --launch <EMULATOR_ID>
+flutter devices
+flutter run -d <EMULATOR_ID>
+```
+
+If `flutter` is not recognized in your current terminal, use the direct executable path:
+
+```powershell
+& "$HOME\.puro\envs\stable\flutter\bin\flutter.bat" emulators
+& "$HOME\.puro\envs\stable\flutter\bin\flutter.bat" emulators --launch <EMULATOR_ID>
+& "$HOME\.puro\envs\stable\flutter\bin\flutter.bat" run -d <EMULATOR_ID>
 ```
 
 Optional Windows desktop test:

@@ -15,6 +15,8 @@ build/
 # Android
 **/android/.gradle/
 **/android/local.properties
+**/android/key.properties
+**/android/upload-keystore.jks
 
 # iOS / macOS
 **/ios/Pods/
@@ -26,3 +28,4 @@ build/
 # Generated assets cache
 output/
 tmp/
+tmp_emu*.png

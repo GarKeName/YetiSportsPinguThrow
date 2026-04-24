@@ -145,6 +145,48 @@ For iPhone builds, run from macOS with Xcode installed (cannot be built from Win
 flutter run -d ios
 ```
 
+## Deploy To Google Play (Android)
+
+1. Set a unique app id before first release.
+In `android/app/build.gradle.kts`, change:
+- `namespace = "com.example.pingu_throw_mobile"`
+- `applicationId = "com.example.pingu_throw_mobile"`
+to your own reverse-domain id, for example `com.yourcompany.yetisportspingu`.
+
+2. Create an upload keystore (one time):
+
+```powershell
+keytool -genkey -v -keystore android/upload-keystore.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+```
+
+3. Create `android/key.properties`:
+
+```properties
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=upload-keystore.jks
+```
+
+The project is already configured to use this file for release signing.
+
+4. Build the Play Store bundle (`.aab`):
+
+```powershell
+flutter build appbundle --release
+```
+
+Output file:
+- `build/app/outputs/bundle/release/app-release.aab`
+
+5. Upload in Play Console:
+- Open Google Play Console.
+- Create app (once).
+- Go to `Testing > Internal testing` (recommended first).
+- Create release and upload `app-release.aab`.
+- Complete Store Listing + Content Rating + Data safety.
+- Roll out to internal testers, then promote to production.
+
 ## Notes
 - This is an original implementation inspired by the classic timing-and-distance mechanic.
 - No external game engine package is required; the game loop and physics are in pure Flutter.

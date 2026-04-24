@@ -38,26 +38,50 @@ class PinguThrowGamePage extends StatefulWidget {
 class _PinguThrowGamePageState extends State<PinguThrowGamePage>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
-  late DateTime _lastTick;
+  Duration _lastTickElapsed = Duration.zero;
+  bool _assetsPrecached = false;
   final _game = ArcticSluggerGame();
   static const _stageAsset = 'assets/images/v2/stage_bg_classic.png';
   static const _flightAsset = 'assets/images/v2/flight_bg_classic.png';
   static const _yetiIdleAsset = 'assets/images/v2/yeti_idle.png';
   static const _yetiSwingAsset = 'assets/images/v2/yeti_swing_lr.png';
   static const _penguinAsset = 'assets/images/v2/penguin.png';
+  static const _backgroundFilterQuality = FilterQuality.low;
+  static const _spriteFilterQuality = FilterQuality.medium;
 
   @override
   void initState() {
     super.initState();
-    _lastTick = DateTime.now();
     _ticker = createTicker(_onTick)..start();
   }
 
-  void _onTick(Duration _) {
-    final now = DateTime.now();
-    final dt =
-        (now.difference(_lastTick).inMicroseconds / 1000000.0).clamp(0.0, 0.05);
-    _lastTick = now;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_assetsPrecached) {
+      return;
+    }
+    _assetsPrecached = true;
+    final preload = <String>[
+      _stageAsset,
+      _flightAsset,
+      _yetiIdleAsset,
+      _yetiSwingAsset,
+      _penguinAsset,
+    ];
+    for (final path in preload) {
+      precacheImage(AssetImage(path), context);
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    if (_lastTickElapsed == Duration.zero) {
+      _lastTickElapsed = elapsed;
+      return;
+    }
+    final rawDt = (elapsed - _lastTickElapsed).inMicroseconds / 1000000.0;
+    _lastTickElapsed = elapsed;
+    final dt = rawDt.clamp(1 / 240, 1 / 30);
     setState(() {
       _game.update(dt);
     });
@@ -72,77 +96,153 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1420),
+      backgroundColor: const Color(0xFF02101A),
       body: SafeArea(
-        child: Center(
-          child: AspectRatio(
-            aspectRatio: 4 / 3,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFBFD8E8), width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0xAA000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 10),
-                  ),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            setState(_game.handleTap);
+          },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final screenWidth = constraints.maxWidth;
+              final screenHeight = constraints.maxHeight;
+              if (screenWidth <= 0 || screenHeight <= 0) {
+                return const SizedBox.expand();
+              }
+              final isPortrait = screenHeight > screenWidth;
+              if (isPortrait) {
+                return _buildPortraitLayout(
+                  screenWidth: screenWidth,
+                  screenHeight: screenHeight,
+                );
+              }
+              return _buildLandscapeLayout(
+                screenWidth: screenWidth,
+                screenHeight: screenHeight,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout({
+    required double screenWidth,
+    required double screenHeight,
+  }) {
+    final worldScale = math.min(
+      screenHeight / ArcticSluggerGame.worldHeight,
+      screenWidth / ArcticSluggerGame.stageWidth,
+    );
+    final viewWorldWidth = screenWidth / worldScale;
+    final gamePixelHeight = ArcticSluggerGame.worldHeight * worldScale;
+    final gameTop = (screenHeight - gamePixelHeight) / 2;
+    _game.portraitMode = false;
+    _game.viewWorldWidth = viewWorldWidth;
+
+    return Stack(
+      children: [
+        _buildSkyBackdrop(),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: gameTop,
+          height: gamePixelHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildScaledWorld(viewWorldWidth: viewWorldWidth),
+              _buildOverlayUi(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPortraitLayout({
+    required double screenWidth,
+    required double screenHeight,
+  }) {
+    final targetGameHeight = (screenHeight * 0.72).clamp(
+      420.0,
+      screenHeight - 150.0,
+    );
+    final worldScale =
+        (targetGameHeight / ArcticSluggerGame.worldHeight).clamp(0.72, 0.92);
+    final viewWorldWidth = screenWidth / worldScale;
+    final gamePixelHeight = ArcticSluggerGame.worldHeight * worldScale;
+    _game.portraitMode = true;
+    _game.viewWorldWidth = viewWorldWidth;
+
+    return Stack(
+      children: [
+        _buildSkyBackdrop(),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: gamePixelHeight,
+          child: _buildScaledWorld(
+            viewWorldWidth: viewWorldWidth,
+            showStageTopScore: false,
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: gamePixelHeight,
+          bottom: 0,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFB7D9EC),
+                  Color(0xFF97C5E0),
+                  Color(0xFF78AFD3),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    setState(_game.handleTap);
-                  },
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final screenWidth = constraints.maxWidth;
-                      final screenHeight = constraints.maxHeight;
-                      final worldScale = math.min(
-                        screenHeight / ArcticSluggerGame.worldHeight,
-                        screenWidth / ArcticSluggerGame.stageWidth,
-                      );
-                      final viewWorldWidth = screenWidth / worldScale;
-                      _game.viewWorldWidth = viewWorldWidth;
-
-                      return Stack(
-                        children: [
-                          _buildSkyBackdrop(),
-                          ClipRect(
-                            child: Transform.scale(
-                              alignment: Alignment.topLeft,
-                              scale: worldScale,
-                              child: SizedBox(
-                                width: viewWorldWidth,
-                                height: ArcticSluggerGame.worldHeight,
-                                child: Stack(
-                                  children: [
-                                    _buildFlightBackdropTiles(),
-                                    _buildStartStageBackdrop(),
-                                    _buildGroundPlane(),
-                                    _buildDistancePosts(
-                                      startX: _game.cameraX,
-                                      width: viewWorldWidth,
-                                    ),
-                                    _buildStageTopScore(),
-                                    _buildYeti(),
-                                    _buildPenguin(),
-                                    if (_game.phase == RoundPhase.dropping)
-                                      _buildHitGuide(),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          _buildOverlayUi(),
-                        ],
-                      );
-                    },
-                  ),
-                ),
+              border: Border(
+                top: BorderSide(color: Color(0xBFEAF8FF), width: 2),
               ),
+            ),
+          ),
+        ),
+        _buildPortraitOverlayUi(gamePixelHeight: gamePixelHeight),
+      ],
+    );
+  }
+
+  Widget _buildScaledWorld({
+    required double viewWorldWidth,
+    bool showStageTopScore = true,
+  }) {
+    return ClipRect(
+      child: RepaintBoundary(
+        child: FittedBox(
+          alignment: Alignment.topLeft,
+          fit: BoxFit.fitWidth,
+          child: SizedBox(
+            width: viewWorldWidth,
+            height: ArcticSluggerGame.worldHeight,
+            child: Stack(
+              children: [
+                _buildFlightBackdropTiles(),
+                _buildStartStageBackdrop(),
+                _buildGroundPlane(),
+                _buildDistancePosts(
+                  startX: _game.cameraX,
+                  width: viewWorldWidth,
+                ),
+                if (showStageTopScore) _buildStageTopScore(),
+                _buildYeti(),
+                _buildPenguin(),
+                if (_game.phase == RoundPhase.dropping) _buildHitGuide(),
+              ],
             ),
           ),
         ),
@@ -155,25 +255,21 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
 
   Widget _buildFlightBackdropTiles() {
     final tiles = <Widget>[];
-    final firstTile =
-        ((_game.cameraX / ArcticSluggerGame.stageWidth).floor() - 1) *
-            ArcticSluggerGame.stageWidth;
-    final lastTile =
-        _game.cameraX + _game.viewWorldWidth + ArcticSluggerGame.stageWidth;
+    const tileWidth = ArcticSluggerGame.stageWidth;
+    final shift = -(_game.cameraX % tileWidth);
+    final tileCount = (_game.viewWorldWidth / tileWidth).ceil() + 3;
 
-    for (double tileX = firstTile;
-        tileX <= lastTile;
-        tileX += ArcticSluggerGame.stageWidth) {
+    for (int i = -1; i < tileCount - 1; i++) {
       tiles.add(
         Positioned(
-          left: tileX - _game.cameraX,
+          left: shift + (i * tileWidth),
           top: 0,
           child: Image.asset(
             _flightAsset,
-            width: ArcticSluggerGame.stageWidth,
+            width: tileWidth,
             height: ArcticSluggerGame.worldHeight,
             fit: BoxFit.fill,
-            filterQuality: FilterQuality.high,
+            filterQuality: _backgroundFilterQuality,
           ),
         ),
       );
@@ -182,15 +278,27 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
   }
 
   Widget _buildStartStageBackdrop() {
+    final fade =
+        ((ArcticSluggerGame.stageWidth - _game.cameraX) / 220).clamp(0.0, 1.0);
+    if (fade <= 0.0) {
+      return const SizedBox.shrink();
+    }
+    final stageCoverWidth = math.max(
+      ArcticSluggerGame.stageWidth,
+      _game.cameraX + _game.viewWorldWidth + 2,
+    );
     return Positioned(
       left: -_game.cameraX,
       top: 0,
-      child: Image.asset(
-        _stageAsset,
-        width: ArcticSluggerGame.stageWidth,
-        height: ArcticSluggerGame.worldHeight,
-        fit: BoxFit.fill,
-        filterQuality: FilterQuality.high,
+      child: Opacity(
+        opacity: fade,
+        child: Image.asset(
+          _stageAsset,
+          width: stageCoverWidth,
+          height: ArcticSluggerGame.worldHeight,
+          fit: BoxFit.fill,
+          filterQuality: _backgroundFilterQuality,
+        ),
       ),
     );
   }
@@ -336,7 +444,7 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
         child: Image.asset(
           yetiAsset,
           fit: BoxFit.contain,
-          filterQuality: FilterQuality.high,
+          filterQuality: _spriteFilterQuality,
         ),
       ),
     );
@@ -355,7 +463,7 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
           child: Image.asset(
             _penguinAsset,
             fit: BoxFit.contain,
-            filterQuality: FilterQuality.high,
+            filterQuality: _spriteFilterQuality,
           ),
         ),
       ),
@@ -363,71 +471,207 @@ class _PinguThrowGamePageState extends State<PinguThrowGamePage>
   }
 
   Widget _buildOverlayUi() {
-    return SafeArea(
-      child: Stack(
+    return Stack(
+      children: [
+        Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            margin: const EdgeInsets.only(top: 8, left: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xA52C4D6A),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBCE8FA)),
+            ),
+            child: Text(
+              'DIST ${_game.currentDistanceMeters.toStringAsFixed(1)}m   BEST ${_game.bestDistanceMeters.toStringAsFixed(1)}m   WIND ${_game.windLabel}',
+              style: const TextStyle(
+                color: Color(0xFFEAF9FF),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 12,
+          right: 12,
+          child: FilledButton(
+            onPressed: () {
+              setState(_game.forceReset);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xD0285D82),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: const Text('Reset'),
+          ),
+        ),
+        Positioned(
+          left: 10,
+          right: 10,
+          bottom: 10,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xA5294E6A),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x9EE0F5FF)),
+            ),
+            child: Text(
+              _game.prompt,
+              style: const TextStyle(
+                color: Color(0xFFEFFCFF),
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                shadows: [
+                  Shadow(
+                    color: Color(0xCC000000),
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPortraitOverlayUi({required double gamePixelHeight}) {
+    return Stack(
+      children: [
+        Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            margin: const EdgeInsets.only(top: 8, left: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xA52C4D6A),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBCE8FA)),
+            ),
+            child: Text(
+              'DIST ${_game.currentDistanceMeters.toStringAsFixed(1)}m   BEST ${_game.bestDistanceMeters.toStringAsFixed(1)}m   WIND ${_game.windLabel}',
+              style: const TextStyle(
+                color: Color(0xFFEAF9FF),
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 12,
+          right: 12,
+          child: FilledButton(
+            onPressed: () {
+              setState(_game.forceReset);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xD0285D82),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: const Text('Reset'),
+          ),
+        ),
+        Positioned(
+          left: 10,
+          right: 10,
+          top: gamePixelHeight + 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xB02A4E6B),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xAAE0F5FF)),
+            ),
+            child: Text(
+              _game.prompt,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFFEFFCFF),
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+                shadows: [
+                  Shadow(
+                    color: Color(0xCC000000),
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 10,
+          right: 10,
+          bottom: 12,
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildPortraitStatChip(
+                  label: 'DIST',
+                  value: '${_game.currentDistanceMeters.toStringAsFixed(1)}m',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildPortraitStatChip(
+                  label: 'BEST',
+                  value: '${_game.bestDistanceMeters.toStringAsFixed(1)}m',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildPortraitStatChip(
+                  label: 'WIND',
+                  value: _game.windLabel,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPortraitStatChip({
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xBB2D5B7D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xA8E3F6FF)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Align(
-            alignment: Alignment.topLeft,
-            child: Container(
-              margin: const EdgeInsets.only(top: 8, left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xA52C4D6A),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFBCE8FA)),
-              ),
-              child: Text(
-                'DIST ${_game.currentDistanceMeters.toStringAsFixed(1)}m   BEST ${_game.bestDistanceMeters.toStringAsFixed(1)}m   WIND ${_game.windLabel}',
-                style: const TextStyle(
-                  color: Color(0xFFEAF9FF),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFD3EDFB),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
             ),
           ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: FilledButton(
-              onPressed: () {
-                setState(_game.forceReset);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xD0285D82),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              ),
-              child: const Text('Reset'),
-            ),
-          ),
-          Positioned(
-            left: 10,
-            right: 10,
-            bottom: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xA5294E6A),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0x9EE0F5FF)),
-              ),
-              child: Text(
-                _game.prompt,
-                style: const TextStyle(
-                  color: Color(0xFFEFFCFF),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  shadows: [
-                    Shadow(
-                      color: Color(0xCC000000),
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: const TextStyle(
+              color: Color(0xFFF6FDFF),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -452,15 +696,18 @@ class ArcticSluggerGame {
   static const double yetiHeight = 220;
   static const double penguinRadius = 17;
   static const double penguinRenderSize = 68;
-  static const double swingDuration = 0.40;
+  static const double swingDuration = 0.46;
 
-  static const double dropGravity = 980;
-  static const double flightGravity = 1220;
-  static const double dragPerFrame = 0.9973;
-  static const double minLaunchAngleDeg = 15;
-  static const double maxLaunchAngleDeg = 50;
-  static const double minLaunchSpeed = 320;
-  static const double maxLaunchSpeed = 1880;
+  static const double dropGravity = 820;
+  static const double flightGravity = 920;
+  static const double dragPerFrame = 0.9987;
+  static const double minLaunchAngleDeg = 20;
+  static const double maxLaunchAngleDeg = 56;
+  static const double minLaunchSpeed = 350;
+  static const double maxLaunchSpeed = 1940;
+  static const double arcLiftDuration = 0.42;
+  static const double arcLiftBase = 0.22;
+  static const double arcLiftQualityBoost = 0.18;
 
   final _rng = math.Random();
 
@@ -476,6 +723,8 @@ class ArcticSluggerGame {
   double penguinVx = 0;
   double penguinVy = 0;
   double penguinRotation = 0;
+  double flightClock = 0;
+  double launchQuality = 0;
 
   double swingTimer = 0;
   double idleClock = 0;
@@ -483,6 +732,7 @@ class ArcticSluggerGame {
 
   double cameraX = 0;
   double viewWorldWidth = 800;
+  bool portraitMode = false;
 
   double distanceMarkerOriginX = 0;
   double launchX = 0;
@@ -558,10 +808,12 @@ class ArcticSluggerGame {
     swingTimer = 0;
     idleClock = 0;
     bounceCount = 0;
+    flightClock = 0;
+    launchQuality = 0;
     distanceMarkerOriginX = hitTargetX;
     launchX = distanceMarkerOriginX;
     currentDistanceMeters = 0;
-    windForce = (_rng.nextDouble() * 2 - 1) * 52;
+    windForce = (_rng.nextDouble() * 2 - 1) * 40;
   }
 
   void _startDrop() {
@@ -569,9 +821,11 @@ class ArcticSluggerGame {
     cameraX = 0;
     swingTimer = 0;
     bounceCount = 0;
+    flightClock = 0;
+    launchQuality = 0;
     currentDistanceMeters = 0;
 
-    windForce = (_rng.nextDouble() * 2 - 1) * 52;
+    windForce = (_rng.nextDouble() * 2 - 1) * 40;
 
     penguinX = perchX;
     penguinY = perchY;
@@ -587,7 +841,11 @@ class ArcticSluggerGame {
 
     final xScore = (1 - ((penguinX - hitTargetX).abs() / 220)).clamp(0.0, 1.0);
     final yScore = (1 - ((penguinY - hitTargetY).abs() / 122)).clamp(0.0, 1.0);
-    final quality = math.pow((xScore * 0.15 + yScore * 0.85), 1.02).toDouble();
+    final quality = math
+        .pow((xScore * 0.15 + yScore * 0.85), 0.90)
+        .toDouble()
+        .clamp(0.0, 1.0)
+        .toDouble();
 
     final angleDeg = _lerp(minLaunchAngleDeg, maxLaunchAngleDeg, quality);
     final speed = _lerp(minLaunchSpeed, maxLaunchSpeed, quality);
@@ -595,6 +853,8 @@ class ArcticSluggerGame {
 
     phase = RoundPhase.flying;
     launchX = distanceMarkerOriginX;
+    flightClock = 0;
+    launchQuality = quality;
 
     penguinVx = speed * math.cos(angleRad);
     penguinVy = -speed * math.sin(angleRad);
@@ -650,13 +910,14 @@ class ArcticSluggerGame {
   void _updateReady(double dt) {
     penguinX = perchX;
     penguinY = perchY + (math.sin(idleClock * 2.2) * 1.8);
-    penguinRotation = -0.05;
+    penguinRotation = -0.04;
     _updateCamera(dt, fixed: true);
   }
 
   void _updateDrop(double dt) {
     penguinVy += dropGravity * dt;
     penguinY += penguinVy * dt;
+    penguinRotation = math.min(0.55, penguinRotation + (2.2 * dt));
 
     if (penguinY >= groundY - penguinRadius) {
       penguinY = groundY - penguinRadius;
@@ -670,7 +931,12 @@ class ArcticSluggerGame {
   }
 
   void _updateFlight(double dt) {
-    penguinVy += flightGravity * dt;
+    flightClock += dt;
+    final liftPhase = (1 - (flightClock / arcLiftDuration)).clamp(0.0, 1.0);
+    final liftFactor = (arcLiftBase + (launchQuality * arcLiftQualityBoost)) *
+        liftPhase.toDouble();
+    final effectiveGravity = flightGravity * (1 - liftFactor);
+    penguinVy += effectiveGravity * dt;
     penguinVx += windForce * dt;
 
     final drag = math.pow(dragPerFrame, dt * 60).toDouble();
@@ -678,7 +944,10 @@ class ArcticSluggerGame {
 
     penguinX += penguinVx * dt;
     penguinY += penguinVy * dt;
-    penguinRotation += (penguinVx / 260) * dt;
+    final desiredRotation =
+        math.atan2(penguinVy, math.max(140.0, penguinVx.abs())) * 0.64;
+    final turnBlend = math.min(1.0, dt * 6.2);
+    penguinRotation += (desiredRotation - penguinRotation) * turnBlend;
 
     if (penguinY >= groundY - penguinRadius) {
       penguinY = groundY - penguinRadius;
@@ -696,10 +965,11 @@ class ArcticSluggerGame {
   }
 
   void _updateSlide(double dt) {
-    final friction = _lerp(165, 255, (windForce.abs() / 70).clamp(0.0, 1.0));
+    final friction = _lerp(150, 232, (windForce.abs() / 70).clamp(0.0, 1.0));
 
     penguinX += penguinVx * dt;
-    penguinRotation += (penguinVx / 520) * dt;
+    penguinRotation += (penguinVx / 620) * dt;
+    penguinRotation *= math.pow(0.984, dt * 60).toDouble();
 
     if (penguinVx > 0) {
       penguinVx = math.max(0, penguinVx - friction * dt);
@@ -717,9 +987,35 @@ class ArcticSluggerGame {
   }
 
   void _updateCamera(double dt, {bool fixed = false}) {
-    final target =
-        fixed ? 0.0 : math.max(0, penguinX - (viewWorldWidth * 0.42));
-    final follow = fixed ? 0.24 : 0.11;
+    if (portraitMode) {
+      final minCamera = math.min(0.0, stageWidth - viewWorldWidth);
+      final fixedTarget = penguinX - (viewWorldWidth * 0.28);
+      final target =
+          fixed ? fixedTarget : penguinX - (viewWorldWidth * 0.38);
+      final follow = fixed ? 0.28 : 0.13;
+      cameraX += (target - cameraX) * (1 - math.pow(1 - follow, dt * 60));
+      final maxCamera = fixed
+          ? math.max(minCamera, stageWidth - viewWorldWidth + 32)
+          : math.max(
+              minCamera,
+              penguinX + math.max(220.0, viewWorldWidth * 0.72) - viewWorldWidth,
+            );
+      cameraX = cameraX.clamp(minCamera, maxCamera).toDouble();
+      return;
+    }
+
+    final isNarrowViewport = viewWorldWidth < stageWidth * 0.75;
+    final portraitOffset =
+        isNarrowViewport ? math.min(110.0, viewWorldWidth * 0.28) : 0.0;
+    final fixedTarget =
+        math.max(0, stageWidth - viewWorldWidth - portraitOffset);
+    final leadDistance = math.max(0.0, penguinVx) * 0.08;
+    final followTarget = math.max(
+      0,
+      penguinX + leadDistance - (viewWorldWidth * 0.38),
+    );
+    final target = fixed ? fixedTarget : followTarget;
+    final follow = fixed ? 0.26 : 0.16;
     cameraX += (target - cameraX) * (1 - math.pow(1 - follow, dt * 60));
     cameraX = math.max(0, cameraX);
   }

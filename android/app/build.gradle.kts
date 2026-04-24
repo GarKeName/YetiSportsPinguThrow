@@ -13,11 +13,29 @@ val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
+
+fun readKeystoreProp(name: String): String? {
+    val direct = keystoreProperties.getProperty(name)?.trim()
+    if (!direct.isNullOrEmpty()) {
+        return direct
+    }
+    val bomPrefixed = keystoreProperties.getProperty("\uFEFF$name")?.trim()
+    if (!bomPrefixed.isNullOrEmpty()) {
+        return bomPrefixed
+    }
+    return null
+}
+
+val storeFileValue = readKeystoreProp("storeFile")
+val storePasswordValue = readKeystoreProp("storePassword")
+val keyAliasValue = readKeystoreProp("keyAlias")
+val keyPasswordValue = readKeystoreProp("keyPassword")
+val releaseStoreFile = storeFileValue?.let { rootProject.file(it) }
 val hasKeystoreConfig = keystorePropertiesFile.exists() &&
-    keystoreProperties.containsKey("storeFile") &&
-    keystoreProperties.containsKey("storePassword") &&
-    keystoreProperties.containsKey("keyAlias") &&
-    keystoreProperties.containsKey("keyPassword")
+    !storePasswordValue.isNullOrEmpty() &&
+    !keyAliasValue.isNullOrEmpty() &&
+    !keyPasswordValue.isNullOrEmpty() &&
+    releaseStoreFile?.exists() == true
 
 android {
     namespace = "com.garkename.yetisportspinguthrow"
@@ -46,10 +64,10 @@ android {
     signingConfigs {
         create("release") {
             if (hasKeystoreConfig) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keyAliasValue
+                keyPassword = keyPasswordValue
+                storeFile = releaseStoreFile
+                storePassword = storePasswordValue
             }
         }
     }

@@ -51,7 +51,7 @@ storePassword=$storePassword
 keyPassword=$keyPassword
 keyAlias=upload
 storeFile=upload-keystore.jks
-"@ | Set-Content -Path $keyPropertiesPath -Encoding utf8
+"@ | Set-Content -Path $keyPropertiesPath -Encoding ascii
 
 & $flutterBat build appbundle --release
 
